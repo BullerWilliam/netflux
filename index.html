@@ -62,10 +62,20 @@
 <script>
 let videoElement = null
 let hideTimeout = null
+let savedTime = 0
 
 function getVideoFromURL() {
     let params = new URLSearchParams(window.location.search)
     return params.get("video")
+}
+
+function createVideo(url) {
+    let vid = document.createElement("video")
+    vid.src = url
+    vid.controls = true
+    vid.currentTime = savedTime
+    document.body.appendChild(vid)
+    videoElement = vid
 }
 
 function startVideo() {
@@ -75,15 +85,10 @@ function startVideo() {
     document.getElementById("playBtn").style.display = "none"
 
     if (url.endsWith(".mp4")) {
-        let vid = document.createElement("video")
-        vid.src = url
-        vid.controls = true
-        vid.muted = false
-
-        vid.play()
-
-        document.body.appendChild(vid)
-        videoElement = vid
+        if (!videoElement) {
+            createVideo(url)
+        }
+        videoElement.play()
     } else {
         let frame = document.createElement("iframe")
         frame.src = url
@@ -101,9 +106,17 @@ function showClose() {
     }, 2000)
 }
 
+function sendClose() {
+    let time = videoElement ? videoElement.currentTime : 0
+    parent.postMessage(JSON.stringify({
+        type: "close",
+        time: time
+    }), "*")
+}
+
 function exitPlayer() {
+    sendClose()
     document.body.innerHTML = ""
-    parent.postMessage("escape", "*")
 }
 
 document.getElementById("playBtn").onclick = startVideo
@@ -113,7 +126,29 @@ window.addEventListener("mousemove", showClose)
 
 window.addEventListener("keydown", function(e) {
     if (e.key === "Escape") {
-        exitPlayer()
+        if (videoElement && !videoElement.paused) {
+            videoElement.pause()
+        } else {
+            exitPlayer()
+        }
+    }
+})
+
+window.addEventListener("message", function(event) {
+    let data = event.data
+
+    try {
+        if (typeof data === "string") {
+            data = JSON.parse(data)
+        }
+    } catch {}
+
+    if (data && data.type === "settime") {
+        savedTime = data.time || 0
+
+        if (videoElement) {
+            videoElement.currentTime = savedTime
+        }
     }
 })
 </script>
