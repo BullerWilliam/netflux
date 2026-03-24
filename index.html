@@ -21,15 +21,16 @@
         }
     </style>
 </head>
-<body>
+<body tabindex="0">
 
 <script>
 let current = null
+let lastURL = null
 
-window.addEventListener("message", function(event) {
-    let url = event.data
+function loadContent(url) {
+    if (!url) return
 
-    if (typeof url !== "string") return
+    lastURL = url
 
     if (current) current.remove()
 
@@ -38,6 +39,8 @@ window.addEventListener("message", function(event) {
         vid.src = url
         vid.autoplay = true
         vid.controls = true
+        vid.style.width = "100%"
+        vid.style.height = "100%"
         document.body.appendChild(vid)
         current = vid
     } else {
@@ -45,6 +48,14 @@ window.addEventListener("message", function(event) {
         frame.src = url
         document.body.appendChild(frame)
         current = frame
+    }
+}
+
+window.addEventListener("message", function(event) {
+    let url = event.data
+
+    if (typeof url === "string") {
+        loadContent(url)
     }
 })
 
@@ -54,7 +65,10 @@ window.addEventListener("keydown", function(e) {
     }
 })
 
-parent.postMessage("ready", "*")
+window.onload = function() {
+    document.body.focus()
+    parent.postMessage("ready", "*")
+}
 </script>
 
 </body>
