@@ -16,6 +16,7 @@
             width: 100%;
             height: 100%;
             border: none;
+            z-index: 1;
         }
 
         video {
@@ -34,6 +35,7 @@
             border: none;
             border-radius: 10px;
             cursor: pointer;
+            z-index: 3;
         }
 
         #closeBtn {
@@ -48,6 +50,7 @@
             cursor: pointer;
             padding: 5px 10px;
             display: none;
+            z-index: 4;
         }
     </style>
 </head>
@@ -69,13 +72,15 @@ function startVideo() {
     let url = getVideoFromURL()
     if (!url) return
 
-    document.getElementById("playBtn").remove()
+    document.getElementById("playBtn").style.display = "none"
 
     if (url.endsWith(".mp4")) {
         let vid = document.createElement("video")
         vid.src = url
         vid.controls = true
-        vid.autoplay = true
+        vid.muted = false
+
+        vid.play()
 
         document.body.appendChild(vid)
         videoElement = vid
