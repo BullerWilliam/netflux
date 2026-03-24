@@ -37,7 +37,19 @@ function loadContent(url) {
         let vid = document.createElement("video")
         vid.src = url
         vid.autoplay = true
+        vid.muted = true
         vid.controls = true
+        vid.playsInline = true
+
+        vid.addEventListener("error", function() {
+            console.log("VIDEO FAILED TO LOAD")
+            document.body.style.background = "red"
+        })
+
+        vid.addEventListener("loadeddata", function() {
+            console.log("VIDEO LOADED")
+        })
+
         document.body.appendChild(vid)
         current = vid
     } else {
