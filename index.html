@@ -24,12 +24,15 @@
 <body>
 
 <script>
-var video = "VIDEOLINKHERE"
-
 let current = null
 
+function getVideoFromURL() {
+    let params = new URLSearchParams(window.location.search)
+    return params.get("video")
+}
+
 function loadContent(url) {
-    if (!url || url === "VIDEOLINKHERE") return
+    if (!url) return
 
     if (current) current.remove()
 
@@ -40,16 +43,6 @@ function loadContent(url) {
         vid.muted = true
         vid.controls = true
         vid.playsInline = true
-
-        vid.addEventListener("error", function() {
-            console.log("VIDEO FAILED TO LOAD")
-            document.body.style.background = "red"
-        })
-
-        vid.addEventListener("loadeddata", function() {
-            console.log("VIDEO LOADED")
-        })
-
         document.body.appendChild(vid)
         current = vid
     } else {
@@ -61,6 +54,7 @@ function loadContent(url) {
 }
 
 window.onload = function() {
+    let video = getVideoFromURL()
     loadContent(video)
 }
 
