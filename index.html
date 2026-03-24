@@ -19,7 +19,7 @@
             z-index: 1;
         }
 
-        #playBtn, .interactiveBtn {
+        #playBtn {
             position: absolute;
             top: 50%;
             left: 50%;
@@ -48,6 +48,22 @@
             display: none;
             z-index: 4;
         }
+
+        .interactiveBtn {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 3;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
     </style>
 </head>
 <body>
@@ -60,7 +76,7 @@ let videoElement = null
 let hideTimeout = null
 let savedTime = 0
 let buttons = {} // buttonid -> {element, timestart, timeend}
-let pendingButtons = [] // buttons sent before video starts
+let pendingButtons = []
 
 function getVideoFromURL() {
     let params = new URLSearchParams(window.location.search)
@@ -75,7 +91,7 @@ function createVideo(url) {
     document.body.appendChild(vid)
     videoElement = vid
 
-    // Once video is created, add any pending buttons
+    // Add pending buttons now
     pendingButtons.forEach(addInteractiveButton)
     pendingButtons = []
 }
@@ -96,19 +112,18 @@ function startVideo() {
     }
 }
 
+// Show the close button briefly
 function showClose() {
-    let btn = document.getElementById("closeBtn")
+    const btn = document.getElementById("closeBtn")
     btn.style.display = "block"
     clearTimeout(hideTimeout)
     hideTimeout = setTimeout(() => btn.style.display = "none", 2000)
 }
 
+// Send JSON on close
 function sendClose() {
-    let time = videoElement ? videoElement.currentTime : 0
-    parent.postMessage(JSON.stringify({
-        type: "close",
-        time: time
-    }), "*")
+    const time = videoElement ? videoElement.currentTime : 0
+    parent.postMessage(JSON.stringify({type:"close", time}), "*")
 }
 
 function exitPlayer() {
@@ -116,41 +131,48 @@ function exitPlayer() {
     document.body.innerHTML = ""
 }
 
-// Adds button to DOM and stores it
+// Add interactive button
 function addInteractiveButton(data) {
-    if (buttons[data.buttonid]) return // already added
+    if (buttons[data.buttonid]) return
     const btn = document.createElement("button")
-    btn.innerText = data.text || "Button"
     btn.className = "interactiveBtn"
-    btn.style.display = "none"
+    btn.innerText = data.text || "Button"
     btn.onclick = () => {
-        if (videoElement) {
-            videoElement.currentTime = data.timeend
-            updateInteractiveButtons()
-        }
+        if (videoElement) videoElement.currentTime = data.timeend
     }
     document.body.appendChild(btn)
     buttons[data.buttonid] = {
         element: btn,
         timestart: data.timestart || 0,
-        timeend: data.timeend || 0
+        timeend: data.timeend || 0,
+        visible: false
     }
 }
 
-// Updates visibility every frame
+// Update buttons based on current video time
 function updateInteractiveButtons() {
     if (!videoElement) return
     const currentTime = videoElement.currentTime
     for (let id in buttons) {
         const b = buttons[id]
         if (currentTime >= b.timestart && currentTime <= b.timeend) {
-            b.element.style.display = "block"
+            if (!b.visible) {
+                b.element.style.opacity = 1
+                b.visible = true
+                // Hide after 4 seconds
+                setTimeout(() => {
+                    b.element.style.opacity = 0
+                    b.visible = false
+                }, 4000)
+            }
         } else {
-            b.element.style.display = "none"
+            b.element.style.opacity = 0
+            b.visible = false
         }
     }
 }
 
+// Loop for updating buttons every frame
 function animationLoop() {
     updateInteractiveButtons()
     requestAnimationFrame(animationLoop)
