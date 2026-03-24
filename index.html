@@ -21,16 +21,15 @@
         }
     </style>
 </head>
-<body tabindex="0">
+<body>
 
 <script>
+var video = "VIDEOLINKHERE"
+
 let current = null
-let lastURL = null
 
 function loadContent(url) {
-    if (!url) return
-
-    lastURL = url
+    if (!url || url === "VIDEOLINKHERE") return
 
     if (current) current.remove()
 
@@ -39,8 +38,6 @@ function loadContent(url) {
         vid.src = url
         vid.autoplay = true
         vid.controls = true
-        vid.style.width = "100%"
-        vid.style.height = "100%"
         document.body.appendChild(vid)
         current = vid
     } else {
@@ -51,24 +48,15 @@ function loadContent(url) {
     }
 }
 
-window.addEventListener("message", function(event) {
-    let url = event.data
-
-    if (typeof url === "string") {
-        loadContent(url)
-    }
-})
+window.onload = function() {
+    loadContent(video)
+}
 
 window.addEventListener("keydown", function(e) {
     if (e.key === "Escape") {
         parent.postMessage("escape", "*")
     }
 })
-
-window.onload = function() {
-    document.body.focus()
-    parent.postMessage("ready", "*")
-}
 </script>
 
 </body>
