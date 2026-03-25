@@ -62,6 +62,7 @@
             cursor: pointer;
             z-index: 3;
             opacity: 0;
+            pointer-events: none;
             transition: opacity 0.3s;
         }
     </style>
@@ -75,8 +76,9 @@
 let videoElement = null
 let hideTimeout = null
 let savedTime = 0
-let buttons = {} // buttonid -> {element, timestart, timeend}
+let buttons = {}
 let pendingButtons = []
+let isSeeking = false
 
 function getVideoFromURL() {
     let params = new URLSearchParams(window.location.search)
@@ -88,10 +90,13 @@ function createVideo(url) {
     vid.src = url
     vid.controls = true
     vid.currentTime = savedTime
+
+    vid.addEventListener("seeking", () => isSeeking = true)
+    vid.addEventListener("seeked", () => isSeeking = false)
+
     document.body.appendChild(vid)
     videoElement = vid
 
-    // Add pending buttons now
     pendingButtons.forEach(addInteractiveButton)
     pendingButtons = []
 }
@@ -105,14 +110,9 @@ function startVideo() {
     if (url.endsWith(".mp4")) {
         if (!videoElement) createVideo(url)
         videoElement.play()
-    } else {
-        let frame = document.createElement("iframe")
-        frame.src = url
-        document.body.appendChild(frame)
     }
 }
 
-// Show the close button briefly
 function showClose() {
     const btn = document.getElementById("closeBtn")
     btn.style.display = "block"
@@ -120,7 +120,6 @@ function showClose() {
     hideTimeout = setTimeout(() => btn.style.display = "none", 2000)
 }
 
-// Send JSON on close
 function sendClose() {
     const time = videoElement ? videoElement.currentTime : 0
     parent.postMessage(JSON.stringify({type:"close", time}), "*")
@@ -131,48 +130,58 @@ function exitPlayer() {
     document.body.innerHTML = ""
 }
 
-// Add interactive button
 function addInteractiveButton(data) {
     if (buttons[data.buttonid]) return
+
     const btn = document.createElement("button")
     btn.className = "interactiveBtn"
     btn.innerText = data.text || "Button"
+
     btn.onclick = () => {
         if (videoElement) videoElement.currentTime = data.timeend
     }
+
     document.body.appendChild(btn)
+
     buttons[data.buttonid] = {
         element: btn,
         timestart: data.timestart || 0,
         timeend: data.timeend || 0,
-        visible: false
+        active: false,
+        timeout: null
     }
 }
 
-// Update buttons based on current video time
 function updateInteractiveButtons() {
-    if (!videoElement) return
+    if (!videoElement || isSeeking) return
+
     const currentTime = videoElement.currentTime
+
     for (let id in buttons) {
         const b = buttons[id]
-        if (currentTime >= b.timestart && currentTime <= b.timeend) {
-            if (!b.visible) {
-                b.element.style.opacity = 1
-                b.visible = true
-                // Hide after 4 seconds
-                setTimeout(() => {
-                    b.element.style.opacity = 0
-                    b.visible = false
-                }, 4000)
-            }
-        } else {
+        const shouldShow = currentTime >= b.timestart && currentTime <= b.timeend
+
+        if (shouldShow && !b.active) {
+            b.active = true
+            b.element.style.opacity = 1
+            b.element.style.pointerEvents = "auto"
+
+            clearTimeout(b.timeout)
+            b.timeout = setTimeout(() => {
+                b.element.style.opacity = 0
+                b.element.style.pointerEvents = "none"
+                b.active = false
+            }, 4000)
+        }
+
+        if (!shouldShow && b.active) {
             b.element.style.opacity = 0
-            b.visible = false
+            b.element.style.pointerEvents = "none"
+            b.active = false
         }
     }
 }
 
-// Loop for updating buttons every frame
 function animationLoop() {
     updateInteractiveButtons()
     requestAnimationFrame(animationLoop)
@@ -180,11 +189,16 @@ function animationLoop() {
 
 document.getElementById("playBtn").onclick = startVideo
 document.getElementById("closeBtn").onclick = exitPlayer
+
 window.addEventListener("mousemove", showClose)
+
 window.addEventListener("keydown", e => {
     if (e.key === "Escape") {
-        if (videoElement && !videoElement.paused) videoElement.pause()
-        else exitPlayer()
+        if (videoElement && !videoElement.paused) {
+            videoElement.pause()
+        } else {
+            exitPlayer()
+        }
     }
 })
 
@@ -196,7 +210,9 @@ window.addEventListener("message", event => {
     if (data.type === "settime") {
         savedTime = data.time || 0
         if (videoElement) videoElement.currentTime = savedTime
-    } else if (data.type === "button") {
+    }
+
+    if (data.type === "button") {
         if (videoElement) addInteractiveButton(data)
         else pendingButtons.push(data)
     }
